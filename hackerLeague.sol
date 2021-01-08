@@ -32,7 +32,7 @@ contract HackerLeague {
      * - `_superior` 直接上级
      */
     function buyHashRate(ERC20 _token,uint _tokenAmount, uint _price, address _superior) public {
-        uint totalUsdt = _tokenAmount / _price;
+        uint totalUsdt = _tokenAmount * _price / 10000;
         // 10 USDT = 1T
         // 计算当前能买多少 T
         uint _hashRate = totalUsdt / 10;
