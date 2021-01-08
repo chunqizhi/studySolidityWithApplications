@@ -11,6 +11,7 @@ contract HackerLeague {
     struct user {
         address superior;
         uint256 hashRate;
+        bool isUser;
     }
     mapping(address => user) public users;
 
@@ -21,6 +22,7 @@ contract HackerLeague {
 
     constructor() public {
         owner = msg.sender;
+        users[msg.sender].isUser = true;
     }
 
     /**
@@ -32,6 +34,8 @@ contract HackerLeague {
      * - `_superior` 直接上级
      */
     function buyHashRate(ERC20 _token,uint _tokenAmount, uint _price, address _superior) public {
+        // _superior 需要是 user 了
+        require(users[_superior].isUser, "Superior is not user");
         uint totalUsdt = _tokenAmount * _price / 10000;
         // 10 USDT = 1T
         // 计算当前能买多少 T
