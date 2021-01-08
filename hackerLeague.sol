@@ -3,64 +3,62 @@ pragma solidity ^0.6.0;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v3.0.0/contracts/token/ERC20/ERC20.sol";
 
+
 //用户推荐关系、算力购买、HE-3 代币释放和用户收益提取记录为去中心化
 contract HackerLeague {
-    // 用户推荐关系
-    // 上级
-    mapping(address => address) private mySuperior;
-    // 是否已有上级
-    mapping(address => bool) private isHasSuperior;
+    address public owner;
+    //
+    struct user {
+        address superior;
+        uint256 hashRate;
+    }
+    mapping(address => user) public users;
 
-    // 算力购买
-    // 是否已经购买过了
-    mapping(address => bool) private isBuy;
-    // 算力购买情况
-    mapping(address => uint) hashRate;
-
-    // 保存直接上级事件
-    event LogSaveSuperior(address owner,address superior);
     // 算力购买情况事件
-    event LogBuyHashRate(address owner, uint hashRate);
+    event LogBuyHashRate(address owner, uint hashRate, address superior);
     // 用户收益提取记录事件
     event LogWithdraw(address owner, uint reward);
 
-
-    // 好友接收邀请后并购买了算力后调用的合约方法
-    function saveSuperior(address _superior) public {
-        // 不能已有上级
-        require(!isHasSuperior[msg.sender],"only one superior");
-        // 上级地址不为 0
-        require(_superior != address(0), "Invalid superior");
-        // 上级需要购买过算力
-        require(isBuy[_superior], "superior need has hashRate");
-
-        // 需要当前地址已经购买算力
-        require(isBuy[msg.sender],"Not yet buy hashRate");
-        // 保存上级
-        mySuperior[msg.sender] = _superior;
-
-        // 触发事件
-        emit LogSaveSuperior(msg.sender, _superior);
+    constructor() public {
+        owner = msg.sender;
     }
 
-    // 用户购买算力：多少 T
-    function buyHashRate(uint _hashRate) public {
+    /**
+     * Requirements:
+     *
+     * - `_token` HE-1 或者 HE-3 的合约地址
+     * - `_tokenAmount` token 数量
+     * - `_price` token 与 usdt 对应的价格，考虑小数点，需要协定 1 = 10000，0.03 = 300
+     * - `_superior` 直接上级
+     */
+    function buyHashRate(ERC20 _token,uint _tokenAmount, uint _price, address _superior) public {
+        uint totalUsdt = _tokenAmount / _price;
+        // 10 USDT = 1T
+        // 计算当前能买多少 T
+        uint _hashRate = totalUsdt / 10;
         // 单次购买下限 1 T
-        require(_hashRate >= 1, "Need buy 1 T least");
-        //
-        require((hashRate[msg.sender] + _hashRate) >= hashRate[msg.sender]);
-        // 更新算力购买情况
-        hashRate[msg.sender] += _hashRate;
-        // 更新
-        isBuy[msg.sender] = true;
+        require(_hashRate >= 1, "Need buy 1T least");
+        require(
+            _token.allowance(msg.sender, address(this)) >= _tokenAmount,
+            "Token allowance too low"
+        );
+        bool sent = _token.transferFrom(msg.sender, owner, _tokenAmount);
+        require(sent, "Token transfer failed");
+
+        if (_superior == address(0)) {
+            // 已有上级，继续购买算力
+            require(users[msg.sender].superior != address(0), "no superior");
+
+            users[msg.sender].hashRate += _hashRate;
+        } else {
+            // 第一次购买算力
+            users[msg.sender].superior = _superior;
+            users[msg.sender].hashRate = _hashRate;
+        }
 
         // 触发事件
-        emit LogBuyHashRate(msg.sender, _hashRate);
+        emit LogBuyHashRate(msg.sender, _hashRate, _superior);
     }
-
-    // HE-3 代币释放
-    // ERC20 合约单独操作
-
 
     // 用户收益提取记录
     function withdraw(ERC20 _token,address sender,address recipient, uint _reward) public {
