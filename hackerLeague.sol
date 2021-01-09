@@ -14,8 +14,16 @@ contract HackerLeague {
         address superior;
         uint256 hashRate;
         bool isUser;
+        buyInfo[] buyInfos;
     }
     mapping(address => user) public users;
+
+    // 记录用户算力购买情况
+    struct buyInfo {
+        uint256 timestamp;
+        uint256 hashRate;
+    }
+    //    mapping(address => buyInfo[]) buyInfos;
 
     // 用户算力购买情况事件
     event LogBuyHashRate(address owner, uint hashRate, address superior);
@@ -76,6 +84,9 @@ contract HackerLeague {
             users[msg.sender].hashRate = hashRate;
         }
 
+        // 保存购买信息记录
+        users[msg.sender].buyInfos.push(buyInfo({timestamp:block.timestamp,hashRate: hashRate}));
+
         // 触发事件
         emit LogBuyHashRate(msg.sender, hashRate, _superior);
     }
@@ -105,12 +116,12 @@ contract HackerLeague {
     }
 
     /**
-     * 获取用户信息
-     *
-     * Requirements:
-     *
-     * - `_userAddress` 用户地址
-     */
+      * 获取用户信息
+      *
+      * Requirements:
+      *
+      * - `_userAddress` 用户地址
+      */
     // 需要引入下面才能支持返回 user
     // pragma experimental ABIEncoderV2
     function userInfo(address _userAddress) public view returns (user memory) {
@@ -148,5 +159,16 @@ contract HackerLeague {
      */
     function isUser(address _userAddress) public view returns (bool) {
         return users[_userAddress].isUser;
+    }
+
+    /**
+     * 获取用户的购买历史数据
+     *
+     * Requirements:
+     *
+     * - `_userAddress` 用户地址
+     */
+    function getBuyInfo(address _userAddress) public view returns (buyInfo[] memory) {
+        return users[_userAddress].buyInfos;
     }
 }
